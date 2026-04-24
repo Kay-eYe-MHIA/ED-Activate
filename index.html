@@ -137,6 +137,9 @@
   .realarm-btn:active{opacity:0.7;transform:scale(0.98);}
   .close-btn{width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1.5px solid rgba(56,201,106,0.3);background:rgba(56,201,106,0.07);color:#38C96A;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;}
   .close-btn:active{opacity:0.7;transform:scale(0.98);}
+  .team-toggle{padding:9px 14px;border-radius:22px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);transition:all 0.15s;white-space:nowrap;}
+  .team-toggle.selected{border-color:var(--c);background:var(--bg);color:var(--accent);}
+  .teams-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -205,9 +208,9 @@
 
         <div style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Severity</div>
         <div class="sev-row" style="margin-bottom:14px;">
-          <button class="sev-btn active" id="sev-critical" style="--c:#E63946;--bg:rgba(230,57,70,0.2);" onclick="setSev('critical')">CRITICAL</button>
-          <button class="sev-btn" id="sev-major" style="--c:#FF6B35;--bg:rgba(255,107,53,0.2);" onclick="setSev('major')">MAJOR</button>
-          <button class="sev-btn" id="sev-moderate" style="--c:#F4A261;--bg:rgba(244,162,97,0.2);" onclick="setSev('moderate')">MODERATE</button>
+          <button class="sev-btn active" id="sev-level1" style="--c:#E63946;--bg:rgba(230,57,70,0.2);" onclick="setSev('level1')">L1 · Resuscitation</button>
+          <button class="sev-btn" id="sev-level2" style="--c:#FF6B35;--bg:rgba(255,107,53,0.2);" onclick="setSev('level2')">L2 · Emergency</button>
+          <button class="sev-btn" id="sev-level3" style="--c:#F4A261;--bg:rgba(244,162,97,0.2);" onclick="setSev('level3')">L3 · Urgency</button>
         </div>
 
         <div class="field-row">
@@ -228,16 +231,22 @@
           <div class="label">Location</div>
           <select id="location">
             <option value="">Select location</option>
-            <option>Resus Bay 1</option><option>Resus Bay 2</option><option>Resus Bay 3</option>
-            <option>Trauma Bay 1</option><option>Trauma Bay 2</option>
-            <option>Bay 3</option><option>Bay 4</option><option>Bay 5</option>
-            <option>Triage Area</option><option>Ambulance Bay</option>
+            <option>Resus 1</option><option>Resus 2</option>
+            <option>Yellow Zone</option><option>Green Zone</option>
+            <option>Yellow Observation</option>
+            <option>Isolation 1</option><option>Isolation 2A/B</option>
+            <option>Iso Tent</option>
           </select>
         </div>
 
         <div class="field">
           <div class="label">Activated By</div>
           <input type="text" id="activatedBy" placeholder="Your name / MO ID"/>
+        </div>
+
+        <div class="field">
+          <div class="label">Notify Teams</div>
+          <div class="teams-grid" id="teamPicker"></div>
         </div>
 
         <div class="field">
@@ -306,15 +315,22 @@ const app = initializeApp(FIREBASE_CONFIG);
 const db  = getFirestore(app);
 
 // ── CASE CONFIG ──
+const ALL_TEAMS = [
+  "Medical Officer","Specialist On-Call","Resuscitation Team",
+  "Trauma Surgery","Orthopaedics","Cardiology","Neurology",
+  "Anaesthesiology","ICU","Stroke Nurse","CT Imaging",
+  "Blood Bank","Pharmacy","Nursing In-Charge",
+];
+
 const CASE_TYPES = {
   polytrauma: { label:"Polytrauma", icon:"🦴", color:"#FF6B35", accent:"#FF8C5A", bg:"rgba(255,107,53,0.12)", teams:["Trauma Surgery","Orthopaedics","Anaesthesiology","ICU","Blood Bank"], desc:"Major trauma with multiple injuries" },
   cpr:        { label:"CPR / Cardiac Arrest", icon:"❤️", color:"#E63946", accent:"#FF4D58", bg:"rgba(230,57,70,0.12)", teams:["Resuscitation Team","Cardiology","ICU","Pharmacy"], desc:"Cardiac arrest requiring resuscitation" },
   stroke:     { label:"Stroke Protocol", icon:"🧠", color:"#4361EE", accent:"#6278F0", bg:"rgba(67,97,238,0.12)", teams:["Neurology","CT Imaging","Stroke Nurse","Pharmacy"], desc:"Acute stroke — time is brain" },
 };
 const SEVERITY = {
-  critical: { label:"CRITICAL", color:"#E63946" },
-  major:    { label:"MAJOR",    color:"#FF6B35" },
-  moderate: { label:"MODERATE", color:"#F4A261" },
+  level1: { label:"L1 · Resuscitation", color:"#E63946" },
+  level2: { label:"L2 · Emergency",     color:"#FF6B35" },
+  level3: { label:"L3 · Urgency",       color:"#F4A261" },
 };
 
 // ── STATE ──
@@ -322,7 +338,8 @@ window.STATE = {
   tab: "activate",
   step: 1,
   caseType: null,
-  severity: "critical",
+  severity: "level1",
+  selectedTeams: [],
   notifPerm: Notification.permission,
   showHomePrompt: true,
   cases: [],
@@ -529,13 +546,32 @@ window.switchTab = function(tab) {
 
 window.selectCaseType = function(key) {
   STATE.caseType = key;
+  STATE.selectedTeams = [...CASE_TYPES[key].teams];
   const c = CASE_TYPES[key];
   document.getElementById("step2header").innerHTML = `
     <span style="font-size:22px">${c.icon}</span>
     <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#fff">${c.label}</div>`;
   const btn = document.getElementById("toStep3Btn");
   btn.style.background = c.color;
+  renderTeamPicker();
   goStep(2);
+};
+
+function renderTeamPicker() {
+  const cfg = CASE_TYPES[STATE.caseType];
+  document.getElementById("teamPicker").innerHTML = ALL_TEAMS.map(t => {
+    const on = STATE.selectedTeams.includes(t);
+    return `<button class="team-toggle${on ? " selected" : ""}"
+      style="--c:${cfg.color};--bg:${cfg.bg};--accent:${cfg.accent}"
+      onclick="toggleTeam('${t}')">${t}</button>`;
+  }).join("");
+}
+
+window.toggleTeam = function(name) {
+  const idx = STATE.selectedTeams.indexOf(name);
+  if (idx === -1) STATE.selectedTeams.push(name);
+  else STATE.selectedTeams.splice(idx, 1);
+  renderTeamPicker();
 };
 
 window.setSev = function(sev) {
@@ -582,7 +618,7 @@ function buildReview() {
     <div class="review-row"><span class="review-key">Activated By</span><span class="review-val">${by}</span></div>
     ${notes ? `<div class="review-row"><span class="review-key">Notes</span><span class="review-val">${notes}</span></div>` : ""}
   `;
-  document.getElementById("reviewTeams").innerHTML = cfg.teams.map(t =>
+  document.getElementById("reviewTeams").innerHTML = STATE.selectedTeams.map(t =>
     `<span class="team-tag" style="background:${cfg.bg};border:1px solid ${cfg.color}40;color:${cfg.accent}">${t}</span>`
   ).join("");
   const btn = document.getElementById("activateBtn");
@@ -606,7 +642,7 @@ window.activateCase = async function() {
     severity: STATE.severity,
     activatedBy: document.getElementById("activatedBy").value,
     notes: document.getElementById("notes").value,
-    teams: cfg.teams,
+    teams: STATE.selectedTeams,
     status: "active",
     timestamp: serverTimestamp(),
   };
@@ -623,13 +659,14 @@ window.activateCase = async function() {
     setTimeout(() => {
       goStep(1);
       STATE.caseType = null;
-      STATE.severity = "critical";
+      STATE.severity = "level1";
+      STATE.selectedTeams = [];
       document.getElementById("patientAge").value = "";
       document.getElementById("patientGender").value = "";
       document.getElementById("location").value = "";
       document.getElementById("activatedBy").value = "";
       document.getElementById("notes").value = "";
-      setSev("critical");
+      setSev("level1");
       switchTab("dashboard");
     }, 3500);
   } catch(e) {
