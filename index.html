@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0D0D1A"/>
+<title>ED Activate</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0D0D1A;font-family:'DM Sans',sans-serif;min-height:100vh;}
+  input,select,textarea{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;width:100%;}
+  input::placeholder,textarea::placeholder{color:rgba(255,255,255,0.2);}
+  input:focus,select:focus,textarea:focus{border-color:rgba(255,255,255,0.3);}
+  select option{background:#1A1A2E;color:#fff;}
+  button{cursor:pointer;font-family:'DM Sans',sans-serif;}
+  ::-webkit-scrollbar{width:0;height:0;}
+  textarea{resize:none;}
+
+  @keyframes pulseRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes scaleIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes slideDown{from{transform:translateX(-50%) translateY(-24px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+  .app{display:flex;justify-content:center;min-height:100vh;}
+  .container{width:100%;max-width:480px;display:flex;flex-direction:column;min-height:100vh;}
+  .header{padding:20px 20px 14px;background:#0D0D1A;position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(255,255,255,0.05);}
+  .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .logo{font-family:'DM Serif Display',serif;font-size:26px;color:#fff;letter-spacing:-0.5px;line-height:1;}
+  .date{font-size:12px;color:rgba(255,255,255,0.28);margin-top:4px;}
+  .tabs{display:flex;gap:4px;background:rgba(255,255,255,0.05);border-radius:12px;padding:4px;}
+  .tab{flex:1;padding:11px 8px;border-radius:9px;border:none;font-size:13px;font-weight:500;color:rgba(255,255,255,0.3);background:transparent;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .tab.active{background:rgba(255,255,255,0.1);color:#fff;font-weight:700;}
+  .content{flex:1;overflow-y:auto;padding-bottom:32px;}
+
+  .step-bar{display:flex;gap:6px;padding:14px 20px 20px;}
+  .step-dot{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);transition:background 0.3s;}
+  .step-dot.active{background:#4361EE;}
+
+  .case-btn{display:flex;align-items:center;gap:14px;padding:18px;border-radius:16px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);width:100%;text-align:left;transition:border-color 0.15s;margin-bottom:10px;}
+  .case-btn:hover{border-color:var(--c);}
+  .case-icon-wrap{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .case-label{font-size:15px;font-weight:700;color:#fff;}
+  .case-desc{font-size:12px;color:rgba(255,255,255,0.3);margin-top:3px;}
+  .case-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px;}
+  .case-tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
+  .chevron{color:rgba(255,255,255,0.2);font-size:22px;margin-left:auto;}
+
+  .sev-row{display:flex;gap:8px;}
+  .sev-btn{flex:1;padding:11px 4px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:11px;font-weight:700;letter-spacing:0.4px;transition:all 0.15s;color:rgba(255,255,255,0.35);}
+  .sev-btn.active{border-color:var(--c);background:var(--bg);color:var(--c);}
+
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .label{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.8px;text-transform:uppercase;}
+
+  .back-btn{flex:1;padding:15px;border-radius:14px;background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.45);font-size:14px;font-weight:600;}
+  .next-btn{flex:2;padding:15px;border-radius:14px;border:none;color:#fff;font-size:14px;font-weight:700;transition:all 0.2s;}
+  .activate-btn{flex:2;padding:15px;border-radius:14px;border:none;color:#fff;font-size:15px;font-weight:800;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;}
+  .btn-row{display:flex;gap:10px;margin-top:20px;}
+
+  .review-box{background:rgba(255,255,255,0.04);border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.07);margin-bottom:14px;}
+  .review-header{display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .review-row{display:flex;gap:12px;margin-bottom:9px;}
+  .review-key{font-size:12px;color:rgba(255,255,255,0.28);width:82px;flex-shrink:0;}
+  .review-val{font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;}
+  .team-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
+  .team-tag{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;}
+  .section-label{font-size:11px;color:rgba(255,255,255,0.28);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;}
+
+  .success-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:64px 24px;text-align:center;animation:fadeIn 0.4s ease;}
+  .success-icon{width:80px;height:80px;border-radius:50%;background:rgba(56,201,106,0.1);border:2px solid rgba(56,201,106,0.3);display:flex;align-items:center;justify-content:center;font-size:36px;animation:scaleIn 0.4s ease;}
+  .success-title{font-family:'DM Serif Display',serif;font-size:26px;color:#38C96A;}
+  .success-sub{font-size:13px;color:rgba(255,255,255,0.35);}
+
+  .notif-banner{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:999;max-width:440px;width:calc(100% - 32px);animation:slideDown 0.35s ease;}
+  .notif-inner{background:#13131F;border-radius:18px;padding:14px 18px;display:flex;gap:14px;align-items:center;}
+  .notif-icon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+  .notif-title{font-size:14px;font-weight:800;}
+  .notif-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .notif-close{background:none;border:none;color:rgba(255,255,255,0.2);font-size:18px;padding:4px;flex-shrink:0;}
+
+  .notif-bar{margin:10px 20px 0;border-radius:14px;padding:13px 15px;display:flex;gap:11px;align-items:flex-start;}
+  .notif-bar.warn{background:rgba(230,57,70,0.08);border:1.5px solid rgba(230,57,70,0.25);}
+  .notif-bar.info{background:rgba(67,97,238,0.1);border:1.5px solid rgba(67,97,238,0.28);}
+  .nb-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+  .nb-body{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.55;}
+  .enable-btn{padding:8px 14px;border-radius:10px;background:#E63946;border:none;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;}
+  .dismiss-btn{background:none;border:none;color:rgba(255,255,255,0.25);font-size:16px;padding:0;flex-shrink:0;}
+
+  .filter-bar{display:flex;gap:7px;padding:12px 20px 16px;overflow-x:auto;scrollbar-width:none;}
+  .filter-btn{flex:0 0 auto;padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.07);font-size:12px;font-weight:700;color:rgba(255,255,255,0.3);display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all 0.15s;}
+  .filter-btn.active{background:var(--bg);border-color:var(--c);color:var(--accent);}
+  .filter-all{flex:0 0 auto;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;white-space:nowrap;transition:all 0.15s;}
+  .filter-all.active{background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);color:#fff;}
+  .filter-all.inactive{background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.3);}
+
+  .cases-list{padding:0 20px;display:flex;flex-direction:column;gap:10px;}
+  .empty{text-align:center;padding:52px 20px;}
+  .empty-icon{font-size:40px;margin-bottom:12px;}
+  .empty-text{font-size:14px;color:rgba(255,255,255,0.2);}
+
+  .case-card{border-radius:16px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.07);overflow:hidden;cursor:pointer;transition:border-color 0.2s;}
+  .card-top{padding:16px 18px;display:flex;gap:14px;align-items:flex-start;}
+  .card-icon-wrap{position:relative;flex-shrink:0;}
+  .card-icon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .pulse-ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--c);animation:pulseRing 1.8s ease-out infinite;pointer-events:none;}
+  .card-type{font-size:15px;font-weight:700;}
+  .card-loc{font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;}
+  .card-meta{display:flex;align-items:center;gap:8px;margin-top:7px;}
+  .sev-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:0.5px;}
+  .elapsed{font-size:11px;color:rgba(255,255,255,0.22);}
+  .time-ago{font-size:11px;display:flex;align-items:center;gap:5px;flex-shrink:0;}
+  .live-dot{width:6px;height:6px;border-radius:50%;background:#38C96A;display:inline-block;animation:blink 1s ease infinite;}
+  .card-body{padding:0 18px 16px;border-top:1px solid rgba(255,255,255,0.06);}
+  .card-notes{padding:12px 0;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .card-teams{padding-top:12px;}
+  .card-by{margin-top:12px;font-size:11px;color:rgba(255,255,255,0.22);}
+
+  .notif-ok{padding:5px 11px;border-radius:20px;background:rgba(56,201,106,0.1);border:1px solid rgba(56,201,106,0.22);display:flex;align-items:center;gap:5px;}
+  .notif-ok-dot{width:6px;height:6px;border-radius:50%;background:#38C96A;animation:blink 2s ease infinite;}
+  .notif-ok-text{font-size:11px;color:#38C96A;font-weight:600;}
+  .enable-alert-btn{padding:6px 12px;border-radius:20px;background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.25);color:#FF4D58;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;}
+
+  .page{display:none;padding:0 20px;animation:fadeIn 0.25s ease;}
+  .page.active{display:block;}
+  .page-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin-bottom:4px;}
+  .page-sub{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:20px;}
+  .spinning{animation:spin 0.7s linear infinite;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="container">
+
+  <!-- NOTIFICATION BANNER -->
+  <div class="notif-banner" id="notifBanner" style="display:none;">
+    <div class="notif-inner" id="notifInner">
+      <div class="notif-icon" id="notifIcon"></div>
+      <div style="flex:1;min-width:0;">
+        <div class="notif-title" id="notifTitle"></div>
+        <div class="notif-sub" id="notifSub"></div>
+      </div>
+      <button class="notif-close" onclick="hideNotifBanner()">✕</button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="logo">ED Activate</div>
+        <div class="date" id="dateLabel"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="notifStatus">
+          <button class="enable-alert-btn" onclick="requestNotifPermission()">🔔 Enable Alerts</button>
+        </div>
+        <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:20px;">🏥</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-activate" onclick="switchTab('activate')">🚨 Activate Case</button>
+      <button class="tab" id="tab-dashboard" onclick="switchTab('dashboard')">📋 Live Cases</button>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div id="alertsArea"></div>
+
+  <!-- CONTENT -->
+  <div class="content" id="mainContent">
+
+    <!-- ACTIVATE TAB -->
+    <div id="activateTab">
+      <div class="step-bar">
+        <div class="step-dot active" id="s1"></div>
+        <div class="step-dot" id="s2"></div>
+        <div class="step-dot" id="s3"></div>
+      </div>
+
+      <!-- Step 1: Case Type -->
+      <div class="page active" id="step1">
+        <div style="padding:0 0 0 0;">
+          <div class="page-title">Select Case Type</div>
+          <div class="page-sub">Which emergency protocol?</div>
+          <div id="caseTypeList"></div>
+        </div>
+      </div>
+
+      <!-- Step 2: Details -->
+      <div class="page" id="step2">
+        <div id="step2header" style="display:flex;align-items:center;gap:10px;margin-bottom:4px;"></div>
+        <div class="page-sub">Patient & location details</div>
+
+        <div style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Severity</div>
+        <div class="sev-row" style="margin-bottom:14px;">
+          <button class="sev-btn active" id="sev-critical" style="--c:#E63946;--bg:rgba(230,57,70,0.2);" onclick="setSev('critical')">CRITICAL</button>
+          <button class="sev-btn" id="sev-major" style="--c:#FF6B35;--bg:rgba(255,107,53,0.2);" onclick="setSev('major')">MAJOR</button>
+          <button class="sev-btn" id="sev-moderate" style="--c:#F4A261;--bg:rgba(244,162,97,0.2);" onclick="setSev('moderate')">MODERATE</button>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <div class="label">Age</div>
+            <input type="number" id="patientAge" placeholder="45"/>
+          </div>
+          <div class="field">
+            <div class="label">Gender</div>
+            <select id="patientGender">
+              <option value="">Select</option>
+              <option>Male</option><option>Female</option><option>Unknown</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label">Location</div>
+          <select id="location">
+            <option value="">Select location</option>
+            <option>Resus Bay 1</option><option>Resus Bay 2</option><option>Resus Bay 3</option>
+            <option>Trauma Bay 1</option><option>Trauma Bay 2</option>
+            <option>Bay 3</option><option>Bay 4</option><option>Bay 5</option>
+            <option>Triage Area</option><option>Ambulance Bay</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="label">Activated By</div>
+          <input type="text" id="activatedBy" placeholder="Your name / MO ID"/>
+        </div>
+
+        <div class="field">
+          <div class="label">Clinical Notes (optional)</div>
+          <textarea id="notes" rows="3" placeholder="Brief clinical summary..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="back-btn" onclick="goStep(1)">← Back</button>
+          <button class="next-btn" id="toStep3Btn" onclick="goStep(3)">Review →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Confirm -->
+      <div class="page" id="step3">
+        <div class="page-title">Confirm Activation</div>
+        <div class="page-sub">All teams will be notified immediately</div>
+        <div class="review-box" id="reviewBox"></div>
+        <div class="section-label">Notifying these teams</div>
+        <div class="team-tags" id="reviewTeams"></div>
+        <div class="btn-row">
+          <button class="back-btn" onclick="goStep(2)">← Edit</button>
+          <button class="activate-btn" id="activateBtn" onclick="activateCase()">🚨 ACTIVATE NOW</button>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div class="page" id="stepSuccess">
+        <div class="success-screen">
+          <div class="success-icon">✓</div>
+          <div class="success-title">Case Activated</div>
+          <div class="success-sub">Push notification sent • Teams alerted</div>
+          <div class="team-tags" id="successTeams" style="justify-content:center;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="dashboardTab" style="display:none;">
+      <div class="filter-bar" id="filterBar"></div>
+      <div class="cases-list" id="casesList"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+
+// ── YOUR FIREBASE CONFIG ──
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDEH_ymExHOwVG8EcmP63Mb0zgrBdhxZdc",
+  authDomain: "edhkl-activation.firebaseapp.com",
+  projectId: "edhkl-activation",
+  storageBucket: "edhkl-activation.firebasestorage.app",
+  messagingSenderId: "235775301318",
+  appId: "1:235775301318:web:6458f492aba1e4e35569c7",
+};
+const VAPID_KEY = "EvwUuwtTWWTEN7uHCFFNNiT921a_sMGyenxkSmi_kXM";
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getFirestore(app);
+
+// ── CASE CONFIG ──
+const CASE_TYPES = {
+  polytrauma: { label:"Polytrauma", icon:"🦴", color:"#FF6B35", accent:"#FF8C5A", bg:"rgba(255,107,53,0.12)", teams:["Trauma Surgery","Orthopaedics","Anaesthesiology","ICU","Blood Bank"], desc:"Major trauma with multiple injuries" },
+  cpr:        { label:"CPR / Cardiac Arrest", icon:"❤️", color:"#E63946", accent:"#FF4D58", bg:"rgba(230,57,70,0.12)", teams:["Resuscitation Team","Cardiology","ICU","Pharmacy"], desc:"Cardiac arrest requiring resuscitation" },
+  stroke:     { label:"Stroke Protocol", icon:"🧠", color:"#4361EE", accent:"#6278F0", bg:"rgba(67,97,238,0.12)", teams:["Neurology","CT Imaging","Stroke Nurse","Pharmacy"], desc:"Acute stroke — time is brain" },
+};
+const SEVERITY = {
+  critical: { label:"CRITICAL", color:"#E63946" },
+  major:    { label:"MAJOR",    color:"#FF6B35" },
+  moderate: { label:"MODERATE", color:"#F4A261" },
+};
+
+// ── STATE ──
+window.STATE = {
+  tab: "activate",
+  step: 1,
+  caseType: null,
+  severity: "critical",
+  notifPerm: Notification.permission,
+  showHomePrompt: true,
+  cases: [],
+  filter: "all",
+  expandedId: null,
+};
+
+// ── INIT ──
+document.getElementById("dateLabel").textContent =
+  new Date().toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"short" });
+
+renderCaseTypes();
+renderFilterBar();
+updateNotifStatus();
+renderAlertsArea();
+
+// Real-time Firestore listener
+const q = query(collection(db, "cases"), orderBy("timestamp", "desc"));
+onSnapshot(q, (snap) => {
+  const prev = STATE.cases.length;
+  STATE.cases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderDashboard();
+  updateTabBadge();
+  if (STATE.cases.length > prev && prev > 0) {
+    showNotifBanner(STATE.cases[0]);
+    playAlert();
+  }
+});
+
+// ── RENDER FUNCTIONS ──
+
+function renderCaseTypes() {
+  const el = document.getElementById("caseTypeList");
+  el.innerHTML = Object.entries(CASE_TYPES).map(([key, c]) => `
+    <button class="case-btn" style="--c:${c.color}" onclick="selectCaseType('${key}')">
+      <div class="case-icon-wrap" style="background:${c.bg}">${c.icon}</div>
+      <div style="flex:1">
+        <div class="case-label">${c.label}</div>
+        <div class="case-desc">${c.desc}</div>
+        <div class="case-tags">
+          ${c.teams.slice(0,3).map(t => `<span class="case-tag" style="color:${c.accent};background:${c.bg}">${t}</span>`).join("")}
+          ${c.teams.length > 3 ? `<span style="font-size:10px;color:rgba(255,255,255,0.25)">+${c.teams.length-3}</span>` : ""}
+        </div>
+      </div>
+      <span class="chevron">›</span>
+    </button>
+  `).join("");
+}
+
+function renderFilterBar() {
+  const counts = {};
+  Object.keys(CASE_TYPES).forEach(k => counts[k] = STATE.cases.filter(c => c.type === k).length);
+  const total = STATE.cases.length;
+  const fb = document.getElementById("filterBar");
+  fb.innerHTML = `
+    <button class="filter-all ${STATE.filter==='all'?'active':'inactive'}" onclick="setFilter('all')">All (${total})</button>
+    ${Object.entries(CASE_TYPES).map(([key,c]) => `
+      <button class="filter-btn ${STATE.filter===key?'active':''}" style="--c:${c.color};--bg:${c.bg};--accent:${c.accent}" onclick="setFilter('${key}')">
+        <span>${c.icon}</span><span style="font-weight:700">${counts[key]||0}</span>
+      </button>
+    `).join("")}
+  `;
+}
+
+function renderDashboard() {
+  renderFilterBar();
+  const filtered = STATE.filter === "all" ? STATE.cases : STATE.cases.filter(c => c.type === STATE.filter);
+  const el = document.getElementById("casesList");
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No active cases</div></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(c => renderCaseCard(c)).join("");
+}
+
+function renderCaseCard(c) {
+  const cfg = CASE_TYPES[c.type] || {};
+  const ts = c.timestamp?.toDate ? c.timestamp.toDate() : new Date(c.timestamp || Date.now());
+  const minAgo = Math.floor((Date.now() - ts) / 60000);
+  const secAgo = Math.floor((Date.now() - ts) / 1000);
+  const timeStr = secAgo < 60 ? `${secAgo}s ago` : `${minAgo}m ago`;
+  const isNew = minAgo < 10;
+  const sev = SEVERITY[c.severity] || {};
+  const expanded = STATE.expandedId === c.id;
+
+  return `
+    <div class="case-card" style="border-color:${expanded ? cfg.color+'65' : isNew ? cfg.color+'28' : 'rgba(255,255,255,0.07)'}" onclick="toggleCard('${c.id}')">
+      <div class="card-top">
+        <div class="card-icon-wrap">
+          <div class="card-icon" style="background:${cfg.bg}">${cfg.icon}</div>
+          ${isNew ? `<div class="pulse-ring" style="--c:${cfg.color}"></div>` : ""}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
+            <div class="card-type" style="color:${cfg.accent}">${cfg.label}</div>
+            <div class="time-ago" style="color:${isNew?'#38C96A':'rgba(255,255,255,0.28)'}">
+              ${isNew ? '<span class="live-dot"></span>' : ""}${timeStr}
+            </div>
+          </div>
+          <div class="card-loc">${c.location||''} · ${c.patientAge||'?'}y/o ${c.patientGender||''}</div>
+          <div class="card-meta">
+            <span class="sev-pill" style="color:${sev.color};background:${sev.color}18">${sev.label||''}</span>
+            <span class="elapsed">⏱ ${minAgo}m elapsed</span>
+          </div>
+        </div>
+      </div>
+      ${expanded ? `
+        <div class="card-body">
+          ${c.notes ? `<div class="card-notes">${c.notes}</div>` : ""}
+          <div class="card-teams">
+            <div class="section-label">Notified Teams</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${(c.teams||[]).map(t => `<span class="team-tag" style="background:${cfg.bg};border:1px solid ${cfg.color}40;color:${cfg.accent}">${t}</span>`).join("")}
+            </div>
+          </div>
+          <div class="card-by">By ${c.activatedBy||'Unknown'} · ${ts.toLocaleTimeString()}</div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderAlertsArea() {
+  const el = document.getElementById("alertsArea");
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  let html = "";
+
+  if (STATE.notifPerm !== "granted") {
+    html += `
+      <div class="notif-bar warn">
+        <span style="font-size:20px;flex-shrink:0">🔔</span>
+        <div style="flex:1">
+          <div class="nb-title" style="color:#FF4D58">Notifications Disabled</div>
+          <div class="nb-body">Enable to receive case alerts</div>
+        </div>
+        <button class="enable-btn" onclick="requestNotifPermission()">Enable</button>
+      </div>`;
+  }
+  if (STATE.showHomePrompt && STATE.notifPerm !== "granted" && !isStandalone) {
+    html += `
+      <div class="notif-bar info" style="margin-top:8px">
+        <span style="font-size:20px;flex-shrink:0">📲</span>
+        <div style="flex:1">
+          <div class="nb-title" style="color:#6278F0">Add to Home Screen</div>
+          <div class="nb-body">
+            ${isIOS
+              ? 'Open in <b style="color:rgba(255,255,255,0.65)">Safari</b> → tap <b style="color:rgba(255,255,255,0.65)">Share ↑</b> → <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b>'
+              : 'Tap <b style="color:rgba(255,255,255,0.65)">⋮ menu</b> → <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b>'}
+          </div>
+        </div>
+        <button class="dismiss-btn" onclick="dismissHomePrompt()">✕</button>
+      </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function updateNotifStatus() {
+  const el = document.getElementById("notifStatus");
+  if (STATE.notifPerm === "granted") {
+    el.innerHTML = `<div class="notif-ok"><span class="notif-ok-dot"></span><span class="notif-ok-text">Notifs ON</span></div>`;
+  } else {
+    el.innerHTML = `<button class="enable-alert-btn" onclick="requestNotifPermission()">🔔 Enable Alerts</button>`;
+  }
+}
+
+function updateTabBadge() {
+  document.getElementById("tab-dashboard").textContent = `📋 Live Cases${STATE.cases.length > 0 ? ` (${STATE.cases.length})` : ""}`;
+}
+
+// ── ACTIONS ──
+
+window.switchTab = function(tab) {
+  STATE.tab = tab;
+  document.getElementById("activateTab").style.display = tab === "activate" ? "block" : "none";
+  document.getElementById("dashboardTab").style.display = tab === "dashboard" ? "block" : "none";
+  document.getElementById("tab-activate").className = "tab" + (tab === "activate" ? " active" : "");
+  document.getElementById("tab-dashboard").className = "tab" + (tab === "dashboard" ? " active" : "");
+  if (tab === "dashboard") renderDashboard();
+};
+
+window.selectCaseType = function(key) {
+  STATE.caseType = key;
+  const c = CASE_TYPES[key];
+  document.getElementById("step2header").innerHTML = `
+    <span style="font-size:22px">${c.icon}</span>
+    <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#fff">${c.label}</div>`;
+  const btn = document.getElementById("toStep3Btn");
+  btn.style.background = c.color;
+  goStep(2);
+};
+
+window.setSev = function(sev) {
+  STATE.severity = sev;
+  document.querySelectorAll(".sev-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("sev-"+sev).classList.add("active");
+};
+
+window.goStep = function(n) {
+  if (n === 3) {
+    const age = document.getElementById("patientAge").value;
+    const loc = document.getElementById("location").value;
+    const by  = document.getElementById("activatedBy").value;
+    if (!age || !loc || !by) { alert("Please fill in Age, Location and Activated By fields."); return; }
+    buildReview();
+  }
+  STATE.step = n;
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("step"+n).classList.add("active");
+  [1,2,3].forEach(i => {
+    document.getElementById("s"+i).classList.toggle("active", i <= n);
+  });
+};
+
+function buildReview() {
+  const cfg = CASE_TYPES[STATE.caseType];
+  const age = document.getElementById("patientAge").value;
+  const gender = document.getElementById("patientGender").value;
+  const loc = document.getElementById("location").value;
+  const by = document.getElementById("activatedBy").value;
+  const notes = document.getElementById("notes").value;
+  const sev = SEVERITY[STATE.severity];
+
+  document.getElementById("reviewBox").innerHTML = `
+    <div class="review-header">
+      <div style="width:50px;height:50px;border-radius:14px;background:${cfg.bg};display:flex;align-items:center;justify-content:center;font-size:26px">${cfg.icon}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:${cfg.accent}">${cfg.label}</div>
+        <div style="font-size:12px;font-weight:700;color:${sev.color};letter-spacing:0.5px;margin-top:2px">${sev.label}</div>
+      </div>
+    </div>
+    <div class="review-row"><span class="review-key">Patient</span><span class="review-val">${age}y/o ${gender}</span></div>
+    <div class="review-row"><span class="review-key">Location</span><span class="review-val">${loc}</span></div>
+    <div class="review-row"><span class="review-key">Activated By</span><span class="review-val">${by}</span></div>
+    ${notes ? `<div class="review-row"><span class="review-key">Notes</span><span class="review-val">${notes}</span></div>` : ""}
+  `;
+  document.getElementById("reviewTeams").innerHTML = cfg.teams.map(t =>
+    `<span class="team-tag" style="background:${cfg.bg};border:1px solid ${cfg.color}40;color:${cfg.accent}">${t}</span>`
+  ).join("");
+  const btn = document.getElementById("activateBtn");
+  btn.style.background = cfg.color;
+  btn.style.boxShadow = `0 4px 24px ${cfg.color}55`;
+}
+
+window.activateCase = async function() {
+  const cfg = CASE_TYPES[STATE.caseType];
+  const btn = document.getElementById("activateBtn");
+  btn.innerHTML = '<span class="spinning">◌</span> Activating...';
+  btn.disabled = true;
+  btn.style.background = "rgba(255,255,255,0.08)";
+  btn.style.boxShadow = "none";
+
+  const caseData = {
+    type: STATE.caseType,
+    patientAge: document.getElementById("patientAge").value,
+    patientGender: document.getElementById("patientGender").value,
+    location: document.getElementById("location").value,
+    severity: STATE.severity,
+    activatedBy: document.getElementById("activatedBy").value,
+    notes: document.getElementById("notes").value,
+    teams: cfg.teams,
+    status: "active",
+    timestamp: serverTimestamp(),
+  };
+
+  try {
+    await addDoc(collection(db, "cases"), caseData);
+    playAlert();
+    sendNotif(`🚨 ${cfg.label} Activated`, `${caseData.location} · ${caseData.patientAge}y/o ${caseData.patientGender} · ${STATE.severity.toUpperCase()}`);
+    document.getElementById("successTeams").innerHTML = cfg.teams.map(t =>
+      `<span class="team-tag" style="background:${cfg.bg};border:1px solid ${cfg.color}40;color:${cfg.accent}">${t}</span>`
+    ).join("");
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById("stepSuccess").classList.add("active");
+    setTimeout(() => {
+      goStep(1);
+      STATE.caseType = null;
+      STATE.severity = "critical";
+      document.getElementById("patientAge").value = "";
+      document.getElementById("patientGender").value = "";
+      document.getElementById("location").value = "";
+      document.getElementById("activatedBy").value = "";
+      document.getElementById("notes").value = "";
+      setSev("critical");
+      switchTab("dashboard");
+    }, 3500);
+  } catch(e) {
+    alert("Error saving case: " + e.message);
+    btn.innerHTML = "🚨 ACTIVATE NOW";
+    btn.disabled = false;
+    btn.style.background = cfg.color;
+  }
+};
+
+window.setFilter = function(f) {
+  STATE.filter = f;
+  renderDashboard();
+};
+
+window.toggleCard = function(id) {
+  STATE.expandedId = STATE.expandedId === id ? null : id;
+  renderDashboard();
+};
+
+window.requestNotifPermission = async function() {
+  const result = await Notification.requestPermission();
+  STATE.notifPerm = result;
+  updateNotifStatus();
+  renderAlertsArea();
+};
+
+window.dismissHomePrompt = function() {
+  STATE.showHomePrompt = false;
+  renderAlertsArea();
+};
+
+window.hideNotifBanner = function() {
+  document.getElementById("notifBanner").style.display = "none";
+};
+
+// ── HELPERS ──
+
+function showNotifBanner(c) {
+  const cfg = CASE_TYPES[c.type] || {};
+  const banner = document.getElementById("notifBanner");
+  const inner = document.getElementById("notifInner");
+  inner.style.border = `2px solid ${cfg.color}`;
+  inner.style.boxShadow = `0 12px 40px ${cfg.color}55, 0 4px 16px rgba(0,0,0,0.6)`;
+  document.getElementById("notifIcon").style.background = cfg.bg;
+  document.getElementById("notifIcon").textContent = cfg.icon;
+  document.getElementById("notifTitle").style.color = cfg.accent;
+  document.getElementById("notifTitle").textContent = `🚨 ${cfg.label} Activated`;
+  document.getElementById("notifSub").textContent = `${c.location} · ${c.patientAge}y/o ${c.patientGender} · ${(c.severity||'').toUpperCase()}`;
+  banner.style.display = "block";
+  setTimeout(() => banner.style.display = "none", 6000);
+}
+
+function sendNotif(title, body) {
+  if (STATE.notifPerm === "granted") {
+    new Notification(title, { body, requireInteraction: true, tag: "ed-alert" });
+  }
+}
+
+function playAlert() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [[0,880],[0.28,1100],[0.56,880]].forEach(([t,freq]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + t);
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.25);
+    });
+  } catch(_) {}
+}
+
+// Refresh elapsed timers every 30s
+setInterval(() => { if (STATE.tab === "dashboard") renderDashboard(); }, 30000);
+
+</script>
+</body>
+</html>
