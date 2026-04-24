@@ -132,6 +132,11 @@
   .page-title{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin-bottom:4px;}
   .page-sub{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:20px;}
   .spinning{animation:spin 0.7s linear infinite;display:inline-block;}
+  .expire-warn{font-size:10px;font-weight:700;color:#F4A261;background:rgba(244,162,97,0.12);border:1px solid rgba(244,162,97,0.3);padding:2px 8px;border-radius:10px;letter-spacing:0.3px;}
+  .realarm-btn{width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;}
+  .realarm-btn:active{opacity:0.7;transform:scale(0.98);}
+  .close-btn{width:100%;margin-top:8px;padding:12px;border-radius:12px;border:1.5px solid rgba(56,201,106,0.3);background:rgba(56,201,106,0.07);color:#38C96A;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;}
+  .close-btn:active{opacity:0.7;transform:scale(0.98);}
 </style>
 </head>
 <body>
@@ -283,7 +288,7 @@
 <!-- FIREBASE SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
 // ── YOUR FIREBASE CONFIG ──
@@ -368,9 +373,10 @@ function renderCaseTypes() {
 }
 
 function renderFilterBar() {
+  const active = getActiveCases();
   const counts = {};
-  Object.keys(CASE_TYPES).forEach(k => counts[k] = STATE.cases.filter(c => c.type === k).length);
-  const total = STATE.cases.length;
+  Object.keys(CASE_TYPES).forEach(k => counts[k] = active.filter(c => c.type === k).length);
+  const total = active.length;
   const fb = document.getElementById("filterBar");
   fb.innerHTML = `
     <button class="filter-all ${STATE.filter==='all'?'active':'inactive'}" onclick="setFilter('all')">All (${total})</button>
@@ -382,9 +388,20 @@ function renderFilterBar() {
   `;
 }
 
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+function getActiveCases() {
+  return STATE.cases.filter(c => {
+    if (c.status === "closed") return false;
+    const ts = c.timestamp?.toDate ? c.timestamp.toDate() : new Date(c.timestamp || Date.now());
+    return (Date.now() - ts) < ONE_HOUR_MS;
+  });
+}
+
 function renderDashboard() {
   renderFilterBar();
-  const filtered = STATE.filter === "all" ? STATE.cases : STATE.cases.filter(c => c.type === STATE.filter);
+  const active = getActiveCases();
+  const filtered = STATE.filter === "all" ? active : active.filter(c => c.type === STATE.filter);
   const el = document.getElementById("casesList");
   if (!filtered.length) {
     el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No active cases</div></div>`;
@@ -396,15 +413,18 @@ function renderDashboard() {
 function renderCaseCard(c) {
   const cfg = CASE_TYPES[c.type] || {};
   const ts = c.timestamp?.toDate ? c.timestamp.toDate() : new Date(c.timestamp || Date.now());
-  const minAgo = Math.floor((Date.now() - ts) / 60000);
-  const secAgo = Math.floor((Date.now() - ts) / 1000);
+  const msAgo = Date.now() - ts;
+  const minAgo = Math.floor(msAgo / 60000);
+  const secAgo = Math.floor(msAgo / 1000);
   const timeStr = secAgo < 60 ? `${secAgo}s ago` : `${minAgo}m ago`;
   const isNew = minAgo < 10;
+  const minsLeft = 60 - minAgo;
+  const isExpiring = minsLeft <= 15;
   const sev = SEVERITY[c.severity] || {};
   const expanded = STATE.expandedId === c.id;
 
   return `
-    <div class="case-card" style="border-color:${expanded ? cfg.color+'65' : isNew ? cfg.color+'28' : 'rgba(255,255,255,0.07)'}" onclick="toggleCard('${c.id}')">
+    <div class="case-card" style="border-color:${expanded ? cfg.color+'65' : isNew ? cfg.color+'28' : 'rgba(255,255,255,0.07)'}${isExpiring ? ';opacity:0.75' : ''}" onclick="toggleCard('${c.id}')">
       <div class="card-top">
         <div class="card-icon-wrap">
           <div class="card-icon" style="background:${cfg.bg}">${cfg.icon}</div>
@@ -421,6 +441,7 @@ function renderCaseCard(c) {
           <div class="card-meta">
             <span class="sev-pill" style="color:${sev.color};background:${sev.color}18">${sev.label||''}</span>
             <span class="elapsed">⏱ ${minAgo}m elapsed</span>
+            ${isExpiring ? `<span class="expire-warn">⏰ Expires in ${minsLeft}m</span>` : ""}
           </div>
         </div>
       </div>
@@ -434,6 +455,12 @@ function renderCaseCard(c) {
             </div>
           </div>
           <div class="card-by">By ${c.activatedBy||'Unknown'} · ${ts.toLocaleTimeString()}</div>
+          <button class="realarm-btn" style="border-color:${cfg.color}55;color:${cfg.accent}" onclick="event.stopPropagation();reAlarm('${c.id}')">
+            🔔 Re-Alarm All Teams
+          </button>
+          <button class="close-btn" onclick="event.stopPropagation();closeCase('${c.id}')">
+            ✓ Close Case
+          </button>
         </div>
       ` : ""}
     </div>
@@ -485,7 +512,8 @@ function updateNotifStatus() {
 }
 
 function updateTabBadge() {
-  document.getElementById("tab-dashboard").textContent = `📋 Live Cases${STATE.cases.length > 0 ? ` (${STATE.cases.length})` : ""}`;
+  const count = getActiveCases().length;
+  document.getElementById("tab-dashboard").textContent = `📋 Live Cases${count > 0 ? ` (${count})` : ""}`;
 }
 
 // ── ACTIONS ──
@@ -638,6 +666,29 @@ window.hideNotifBanner = function() {
   document.getElementById("notifBanner").style.display = "none";
 };
 
+window.reAlarm = function(id) {
+  const c = STATE.cases.find(x => x.id === id);
+  if (!c) return;
+  const cfg = CASE_TYPES[c.type] || {};
+  playAlert();
+  sendNotif(
+    `🔔 Re-Alarm: ${cfg.label}`,
+    `${c.location} · ${c.patientAge}y/o ${c.patientGender} · ${(c.severity||'').toUpperCase()} — Teams re-alerted`
+  );
+  showNotifBanner(c);
+};
+
+window.closeCase = async function(id) {
+  if (!confirm("Mark this case as closed?")) return;
+  try {
+    await updateDoc(doc(db, "cases", id), { status: "closed" });
+    STATE.expandedId = null;
+    // Dashboard will update automatically via onSnapshot
+  } catch(e) {
+    alert("Error closing case: " + e.message);
+  }
+};
+
 // ── HELPERS ──
 
 function showNotifBanner(c) {
@@ -677,8 +728,11 @@ function playAlert() {
   } catch(_) {}
 }
 
-// Refresh elapsed timers every 30s
-setInterval(() => { if (STATE.tab === "dashboard") renderDashboard(); }, 30000);
+// Refresh elapsed timers & expire old cases every 60s
+setInterval(() => {
+  if (STATE.tab === "dashboard") renderDashboard();
+  updateTabBadge();
+}, 60000);
 
 </script>
 </body>
