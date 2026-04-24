@@ -680,6 +680,8 @@ function buildReview() {
     `<span class="team-tag" style="background:${cfg.bg};border:1px solid ${cfg.color}40;color:${cfg.accent}">${t}</span>`
   ).join("");
   const btn = document.getElementById("activateBtn");
+  btn.innerHTML = "🚨 ACTIVATE NOW";
+  btn.disabled = false;
   btn.style.background = cfg.color;
   btn.style.boxShadow = `0 4px 24px ${cfg.color}55`;
 }
@@ -715,6 +717,12 @@ window.activateCase = async function() {
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     document.getElementById("stepSuccess").classList.add("active");
     setTimeout(() => {
+      // Reset activate button before going back
+      const btn = document.getElementById("activateBtn");
+      btn.innerHTML = "🚨 ACTIVATE NOW";
+      btn.disabled = false;
+      btn.style.boxShadow = "none";
+
       goStep(1);
       STATE.caseType = null;
       STATE.severity = "level1";
