@@ -501,16 +501,16 @@ function renderAlertsArea() {
         <button class="enable-btn" onclick="requestNotifPermission()">Enable</button>
       </div>`;
   }
-  if (STATE.showHomePrompt && STATE.notifPerm !== "granted" && !isStandalone) {
+  if (STATE.showHomePrompt && !isStandalone) {
     html += `
       <div class="notif-bar info" style="margin-top:8px">
         <span style="font-size:20px;flex-shrink:0">📲</span>
         <div style="flex:1">
-          <div class="nb-title" style="color:#6278F0">Add to Home Screen</div>
+          <div class="nb-title" style="color:#6278F0">Install App for Push Alerts</div>
           <div class="nb-body">
             ${isIOS
-              ? 'Open in <b style="color:rgba(255,255,255,0.65)">Safari</b> → tap <b style="color:rgba(255,255,255,0.65)">Share ↑</b> → <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b>'
-              : 'Tap <b style="color:rgba(255,255,255,0.65)">⋮ menu</b> → <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b>'}
+              ? '1. Open this page in <b style="color:rgba(255,255,255,0.65)">Safari</b><br>2. Tap the <b style="color:rgba(255,255,255,0.65)">Share ↑</b> button at the bottom<br>3. Tap <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b><br>4. Open the app icon and enable alerts'
+              : '1. Tap the <b style="color:rgba(255,255,255,0.65)">⋮ menu</b> in your browser<br>2. Tap <b style="color:rgba(255,255,255,0.65)">"Add to Home Screen"</b> or <b style="color:rgba(255,255,255,0.65)">"Install App"</b><br>3. Open the app icon and enable alerts'}
           </div>
         </div>
         <button class="dismiss-btn" onclick="dismissHomePrompt()">✕</button>
