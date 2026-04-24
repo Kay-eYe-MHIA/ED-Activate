@@ -821,16 +821,28 @@ function sendNotif(title, body) {
 function playAlert() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [[0,880],[0.28,1100],[0.56,880]].forEach(([t,freq]) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + t);
-      gain.gain.setValueAtTime(0.35, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.25);
-    });
+
+    // Rich bell tone using real bell harmonics
+    function ring(startTime, freq, duration) {
+      [[1, 0.6], [2.756, 0.25], [5.404, 0.1]].forEach(([ratio, vol]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq * ratio;
+        gain.gain.setValueAtTime(vol, ctx.currentTime + startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
+        osc.start(ctx.currentTime + startTime);
+        osc.stop(ctx.currentTime + startTime + duration + 0.1);
+      });
+    }
+
+    // 5 bells alternating high-low, ~5.5 seconds total
+    ring(0.0, 1047, 0.9);  // C6
+    ring(1.0,  880, 0.9);  // A5
+    ring(2.0, 1047, 0.9);  // C6
+    ring(3.0,  880, 0.9);  // A5
+    ring(4.0, 1047, 1.5);  // C6 — longer final ring
   } catch(_) {}
 }
 
