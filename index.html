@@ -297,7 +297,7 @@
 <!-- FIREBASE SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, setDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
 // ── YOUR FIREBASE CONFIG ──
@@ -313,6 +313,42 @@ const VAPID_KEY = "EvwUuwtTWWTEN7uHCFFNNiT921a_sMGyenxkSmi_kXM";
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db  = getFirestore(app);
+
+// ── FCM SETUP ──
+async function registerFCMToken() {
+  try {
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    if (token) {
+      await setDoc(doc(db, "tokens", token), {
+        token,
+        platform: /iPhone|iPad|iPod/.test(navigator.userAgent) ? "ios" : "android",
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch(e) {
+    console.warn("FCM token registration failed:", e.message);
+  }
+}
+
+function setupFCMForeground() {
+  try {
+    const messaging = getMessaging(app);
+    onMessage(messaging, (payload) => {
+      // App is open — play local alert (push notification handled by SW in background)
+      playAlert();
+      const caseId = payload.data?.caseId;
+      const c = STATE.cases.find(x => x.id === caseId);
+      if (c) showNotifBanner(c);
+    });
+  } catch(e) {}
+}
+
+// Register token immediately if permission already granted
+if (Notification.permission === "granted") {
+  registerFCMToken();
+  setupFCMForeground();
+}
 
 // ── CASE CONFIG ──
 const ALL_TEAMS = [
@@ -356,17 +392,39 @@ renderFilterBar();
 updateNotifStatus();
 renderAlertsArea();
 
+// Track lastAlarm timestamps to detect re-alarm events
+const lastAlarmSeen = {};
+
 // Real-time Firestore listener
 const q = query(collection(db, "cases"), orderBy("timestamp", "desc"));
 onSnapshot(q, (snap) => {
-  const prev = STATE.cases.length;
+  const prevCount = STATE.cases.length;
   STATE.cases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   renderDashboard();
   updateTabBadge();
-  if (STATE.cases.length > prev && prev > 0) {
+
+  // New case added → alert
+  if (STATE.cases.length > prevCount && prevCount > 0) {
     showNotifBanner(STATE.cases[0]);
     playAlert();
+    sendNotif(`🚨 ${CASE_TYPES[STATE.cases[0].type]?.label} Activated`,
+      `${STATE.cases[0].location} · ${STATE.cases[0].patientAge}y/o ${STATE.cases[0].patientGender}`);
   }
+
+  // Re-alarm triggered on any case → alert on all devices
+  STATE.cases.forEach(c => {
+    const ts = c.lastAlarm?.toMillis?.() || 0;
+    if (ts && ts !== lastAlarmSeen[c.id]) {
+      // Only fire if this is a new lastAlarm (not just app load)
+      if (lastAlarmSeen[c.id] !== undefined) {
+        playAlert();
+        showNotifBanner(c);
+        sendNotif(`🔔 Re-Alarm: ${CASE_TYPES[c.type]?.label}`,
+          `${c.location} · ${c.patientAge}y/o ${c.patientGender} · ${(c.severity||'').toUpperCase()} — Teams re-alerted`);
+      }
+      lastAlarmSeen[c.id] = ts;
+    }
+  });
 });
 
 // ── RENDER FUNCTIONS ──
@@ -692,6 +750,10 @@ window.requestNotifPermission = async function() {
   STATE.notifPerm = result;
   updateNotifStatus();
   renderAlertsArea();
+  if (result === "granted") {
+    await registerFCMToken();
+    setupFCMForeground();
+  }
 };
 
 window.dismissHomePrompt = function() {
@@ -703,16 +765,15 @@ window.hideNotifBanner = function() {
   document.getElementById("notifBanner").style.display = "none";
 };
 
-window.reAlarm = function(id) {
+window.reAlarm = async function(id) {
   const c = STATE.cases.find(x => x.id === id);
   if (!c) return;
-  const cfg = CASE_TYPES[c.type] || {};
-  playAlert();
-  sendNotif(
-    `🔔 Re-Alarm: ${cfg.label}`,
-    `${c.location} · ${c.patientAge}y/o ${c.patientGender} · ${(c.severity||'').toUpperCase()} — Teams re-alerted`
-  );
-  showNotifBanner(c);
+  try {
+    // Write to Firestore — all devices' onSnapshot will fire and trigger their own alert
+    await updateDoc(doc(db, "cases", id), { lastAlarm: serverTimestamp() });
+  } catch(e) {
+    alert("Re-alarm failed: " + e.message);
+  }
 };
 
 window.closeCase = async function(id) {
